@@ -1,4 +1,3 @@
-import csv
 import json as _json
 import os
 import shutil
@@ -6,82 +5,126 @@ import zipfile
 
 from llmtools.core import backup_file, resolve_safe_path, tool
 
+# All dataframe I/O goes through Polars. Tables are described as
+#   'a,b;1,2;3,4'  ->  first row = column names, ';' separates rows.
+
+
+def _parse_rows(content):
+    """Turn 'header1,header2;v1,v2' text into a Polars DataFrame."""
+    import polars as pl
+    rows = [[c.strip() for c in r.split(",")] for r in content.split(";") if r.strip()]
+    if not rows:
+        return pl.DataFrame()
+    header, *body = rows
+    body = [r + [""] * (len(header) - len(r)) for r in body]
+    return pl.DataFrame({h: [r[i] for r in body] for i, h in enumerate(header)})
+
+
+def _read_any(abs_path):
+    """Read csv/xlsx/json/ndjson/parquet into a Polars DataFrame by extension."""
+    import polars as pl
+    ext = os.path.splitext(abs_path)[1].lower()
+    readers = {
+        ".csv": pl.read_csv, ".xlsx": pl.read_excel, ".json": pl.read_json,
+        ".ndjson": pl.read_ndjson, ".jsonl": pl.read_ndjson, ".parquet": pl.read_parquet,
+    }
+    if ext not in readers:
+        raise ValueError(f"Unsupported table format: {ext}")
+    return readers[ext](abs_path)
+
+
+def _write_any(df, abs_path):
+    ext = os.path.splitext(abs_path)[1].lower()
+    writers = {
+        ".csv": df.write_csv, ".xlsx": df.write_excel, ".json": df.write_json,
+        ".ndjson": df.write_ndjson, ".jsonl": df.write_ndjson, ".parquet": df.write_parquet,
+    }
+    if ext not in writers:
+        raise ValueError(f"Unsupported table format: {ext}")
+    writers[ext](abs_path)
+
 
 @tool
 def read_csv(path: str, max_rows: int = 50) -> str:
-    """Read a CSV file and return its rows.
+    """Read a CSV file into a Polars DataFrame and show it.
 
     Args:
         path: CSV file path.
-        max_rows: Maximum rows to return.
+        max_rows: Maximum rows to display.
     """
+    import polars as pl
     ap = resolve_safe_path(path)
-    with open(ap, newline="", encoding="utf-8", errors="replace") as f:
-        rows = list(csv.reader(f))[:max_rows]
-    return "\n".join(", ".join(r) for r in rows) or "(empty)"
+    return str(pl.read_csv(ap, n_rows=max_rows))
 
 
 @tool
 def write_csv(path: str, content: str) -> str:
-    """Write a CSV file from rows given as 'a,b;c,d' (';' between rows).
+    """Write a CSV via Polars from rows given as 'header1,header2;v1,v2'.
 
     Args:
         path: Output CSV path.
-        content: Rows, cells comma-separated, rows semicolon-separated.
+        content: First row = column names, ';' separates rows.
     """
     ap = resolve_safe_path(path)
     backup_file(ap)
-    with open(ap, "w", newline="", encoding="utf-8") as f:
-        w = csv.writer(f)
-        for row in content.split(";"):
-            if row.strip():
-                w.writerow([c.strip() for c in row.split(",")])
+    _parse_rows(content).write_csv(ap)
     return f"Wrote {ap}"
 
 
 @tool
 def read_excel(path: str, sheet: str = "", max_rows: int = 50) -> str:
-    """Read an Excel .xlsx sheet.
+    """Read an Excel .xlsx sheet into a Polars DataFrame and show it.
 
     Args:
         path: .xlsx file path.
-        sheet: Sheet name (empty = active sheet).
-        max_rows: Maximum rows to return.
+        sheet: Sheet name (empty = first sheet).
+        max_rows: Maximum rows to display.
     """
-    import openpyxl
-
+    import polars as pl
     ap = resolve_safe_path(path)
-    wb = openpyxl.load_workbook(ap, read_only=True, data_only=True)
-    ws = wb[sheet] if sheet else wb.active
-    out = []
-    for i, row in enumerate(ws.iter_rows(values_only=True)):
-        if i >= max_rows:
-            break
-        out.append(", ".join("" if c is None else str(c) for c in row))
-    return "\n".join(out) or "(empty)"
+    df = pl.read_excel(ap, sheet_name=sheet) if sheet else pl.read_excel(ap)
+    return str(df.head(max_rows))
 
 
 @tool
 def write_excel(path: str, content: str, sheet: str = "Sheet1") -> str:
-    """Write an Excel .xlsx from rows given as 'a,b;c,d'.
+    """Write an Excel .xlsx via Polars from rows given as 'header1,header2;v1,v2'.
 
     Args:
         path: Output .xlsx path.
-        content: Rows, cells comma-separated, rows semicolon-separated.
-        sheet: Sheet name.
+        content: First row = column names, ';' separates rows.
+        sheet: Worksheet name.
     """
-    import openpyxl
-
     ap = resolve_safe_path(path)
     backup_file(ap)
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = sheet
-    for row in content.split(";"):
-        if row.strip():
-            ws.append([c.strip() for c in row.split(",")])
-    wb.save(ap)
+    _parse_rows(content).write_excel(ap, worksheet=sheet)
     return f"Wrote {ap}"
+
+
+@tool
+def convert_table(src: str, dst: str) -> str:
+    """Convert a data table between formats by extension (csv/xlsx/json/ndjson/parquet).
+
+    Args:
+        src: Source table path.
+        dst: Destination path; its extension decides the output format.
+    """
+    sp = resolve_safe_path(src)
+    dp = resolve_safe_path(dst)
+    backup_file(dp)
+    _write_any(_read_any(sp), dp)
+    return f"Converted {sp} -> {dp}"
+
+
+@tool
+def table_stats(path: str) -> str:
+    """Summary statistics (Polars describe) of a table (csv/xlsx/json/parquet).
+
+    Args:
+        path: Table file path.
+    """
+    ap = resolve_safe_path(path)
+    return str(_read_any(ap).describe())
 
 
 @tool

@@ -24,20 +24,15 @@ def create_note(title: str, content: str, tags: str = "") -> str:
         content: Markdown body.
         tags: Comma-separated tags.
     """
+    import frontmatter
     p = _note_path(title)
     backup_file(p)
     os.makedirs(os.path.dirname(p), exist_ok=True)
     tag_list = [t.strip() for t in tags.split(",") if t.strip()]
-    fm = [
-        "---",
-        f"title: {title}",
-        f"created: {datetime.now():%Y-%m-%d}",
-        "tags: [" + ", ".join(tag_list) + "]",
-        "---",
-        "",
-    ]
+    post = frontmatter.Post(content, title=title,
+                            created=f"{datetime.now():%Y-%m-%d}", tags=tag_list)
     with open(p, "w", encoding="utf-8") as f:
-        f.write("\n".join(fm) + content + "\n")
+        f.write(frontmatter.dumps(post))
     return f"Created note: {p}"
 
 

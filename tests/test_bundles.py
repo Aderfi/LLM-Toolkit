@@ -13,7 +13,7 @@ def test_calendar_add_and_list(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "CALENDAR_FILE", str(tmp_path / "cal.ics"))
     calendar_tools.add_event("Dentist", "2026-08-01", "10:30")
     out = calendar_tools.list_events()
-    assert "Dentist" in out and "20260801T103000" in out
+    assert "Dentist" in out and "2026-08-01 10:30" in out
 
 
 def test_reminders(tmp_path, monkeypatch):

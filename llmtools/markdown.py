@@ -28,12 +28,10 @@ def markdown_table(headers: str, rows: str) -> str:
         headers: Comma-separated header cells.
         rows: Rows as 'a,b;c,d' (cells comma-separated, rows semicolon-separated).
     """
+    from tabulate import tabulate
     h = [c.strip() for c in headers.split(",")]
-    out = ["| " + " | ".join(h) + " |", "| " + " | ".join("---" for _ in h) + " |"]
-    for r in rows.split(";"):
-        if r.strip():
-            out.append("| " + " | ".join(c.strip() for c in r.split(",")) + " |")
-    return "\n".join(out)
+    body = [[c.strip() for c in r.split(",")] for r in rows.split(";") if r.strip()]
+    return tabulate(body, headers=h, tablefmt="github")
 
 
 @tool

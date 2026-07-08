@@ -1,43 +1,51 @@
-import ast
 import base64 as _b64
 import hashlib
 import json
-import operator
 import uuid
 from datetime import datetime
 
 from llmtools.core import tool
 
-_OPS = {
-    ast.Add: operator.add,
-    ast.Sub: operator.sub,
-    ast.Mult: operator.mul,
-    ast.Div: operator.truediv,
-    ast.Pow: operator.pow,
-    ast.Mod: operator.mod,
-    ast.USub: operator.neg,
-}
-
-
-def _eval(node):
-    if isinstance(node, ast.Constant):
-        return node.value
-    if isinstance(node, ast.BinOp):
-        return _OPS[type(node.op)](_eval(node.left), _eval(node.right))
-    if isinstance(node, ast.UnaryOp):
-        return _OPS[type(node.op)](_eval(node.operand))
-    raise ValueError("Unsupported expression")
-
 
 @tool
 def calculate(expression: str) -> str:
-    """Evaluate a safe arithmetic expression (+ - * / ** %).
+    """Evaluate a math expression via SymPy (supports sqrt, sin, factorial, pi, etc.).
 
     Args:
-        expression: Math expression, e.g. '3 * (4 + 1)'.
+        expression: Math expression, e.g. '3 * (4 + 1)' or 'sqrt(16) + sin(pi/2)'.
     """
+    if "__" in expression:
+        return "Error: invalid expression."
+    from sympy import N, parse_expr
     try:
-        return str(_eval(ast.parse(expression, mode="eval").body))
+        val = N(parse_expr(expression))
+        if not val.is_number:
+            return f"Error: '{expression}' is not a numeric expression."
+        return str(val)
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@tool
+def solve_equation(equation: str, variable: str = "x") -> str:
+    """Solve an equation (algebraic) for a variable using SymPy.
+
+    Args:
+        equation: Equation with '=' (e.g. 'x**2 - 4 = 0') or an expression assumed = 0.
+        variable: Variable to solve for.
+    """
+    if "__" in equation or "__" in variable:
+        return "Error: invalid expression."
+    from sympy import Eq, parse_expr, solve, symbols
+    try:
+        v = symbols(variable)
+        if "=" in equation:
+            lhs, rhs = equation.split("=", 1)
+            expr = Eq(parse_expr(lhs), parse_expr(rhs))
+        else:
+            expr = parse_expr(equation)
+        sols = solve(expr, v)
+        return str(sols) if sols else "No solutions found."
     except Exception as e:
         return f"Error: {e}"
 

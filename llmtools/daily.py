@@ -72,18 +72,28 @@ def get_current_news(topic: str = "") -> str:
 
 
 @tool
-def get_current_time(timezone: str) -> str:
-    """Get current time for a timezone.
+def get_current_time(timezone: str = "") -> str:
+    """Get the current time for a timezone (offline). Empty = the system's own timezone.
 
     Args:
-        timezone: e.g. 'Europe/Madrid'.
+        timezone: IANA timezone name, e.g. 'Europe/Madrid'. Leave empty to use the OS timezone.
     """
-    d = _get_json(
-        f"https://timeapi.io/api/Time/current/zone?timeZone={urllib.parse.quote(timezone)}"
-    )
-    if d.get("time") and d.get("date"):
-        return f"Time in {timezone}: {d['time']} on {d['date']}."
-    return f"Could not fetch time for {timezone}."
+    from datetime import datetime
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+    if not timezone:
+        try:  # resolve the OS timezone to an IANA name
+            from tzlocal import get_localzone_name
+            timezone = get_localzone_name() or ""
+        except Exception:
+            timezone = ""
+        if not timezone:  # fall back to the local offset without a name
+            now = datetime.now().astimezone()
+            return f"Time (system local): {now:%H:%M:%S} on {now:%Y-%m-%d} ({now:%Z%z})."
+    try:
+        now = datetime.now(ZoneInfo(timezone))
+    except (ZoneInfoNotFoundError, ValueError):
+        return f"Unknown timezone: '{timezone}'. Use an IANA name like 'Europe/Madrid'."
+    return f"Time in {timezone}: {now:%H:%M:%S} on {now:%Y-%m-%d} ({now:%Z%z})."
 
 
 @tool

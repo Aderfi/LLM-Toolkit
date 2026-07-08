@@ -11,12 +11,13 @@ def read_pdf(path: str, max_pages: int = 0) -> str:
         path: PDF file path.
         max_pages: Max pages to read (0 = all).
     """
-    from pypdf import PdfReader
+    import fitz  # PyMuPDF
 
     ap = resolve_safe_path(path)
-    reader = PdfReader(ap)
-    pages = reader.pages if max_pages == 0 else reader.pages[:max_pages]
-    text = "\n\n".join((pg.extract_text() or "") for pg in pages).strip()
+    doc = fitz.open(ap)
+    limit = len(doc) if max_pages == 0 else min(max_pages, len(doc))
+    text = "\n\n".join(doc[i].get_text().strip() for i in range(limit)).strip()
+    doc.close()
     return text or "(no extractable text)"
 
 

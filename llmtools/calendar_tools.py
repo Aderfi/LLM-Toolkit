@@ -4,9 +4,6 @@ from datetime import datetime, timedelta
 from llmtools import config
 from llmtools.core import backup_file, resolve_safe_path, tool
 
-_HEADER = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//llmtools//EN\n"
-_FOOTER = "END:VCALENDAR\n"
-
 
 @tool
 def add_event(title: str, date: str, time: str = "09:00", duration_min: int = 60) -> str:
@@ -18,39 +15,42 @@ def add_event(title: str, date: str, time: str = "09:00", duration_min: int = 60
         time: Start time HH:MM.
         duration_min: Duration in minutes.
     """
+    from icalendar import Calendar, Event
     p = resolve_safe_path(config.CALENDAR_FILE)
     start = datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
-    end = start + timedelta(minutes=duration_min)
-    uid = f"{start:%Y%m%dT%H%M%S}-{abs(hash(title)) % 10000}@llmtools"
-    vevent = (
-        f"BEGIN:VEVENT\nUID:{uid}\nDTSTART:{start:%Y%m%dT%H%M%S}\n"
-        f"DTEND:{end:%Y%m%dT%H%M%S}\nSUMMARY:{title}\nEND:VEVENT\n"
-    )
     if os.path.exists(p):
         backup_file(p)
-        with open(p, encoding="utf-8") as f:
-            body = f.read().replace(_FOOTER, "")
+        with open(p, "rb") as f:
+            cal = Calendar.from_ical(f.read())
     else:
-        body = _HEADER
-    with open(p, "w", encoding="utf-8") as f:
-        f.write(body + vevent + _FOOTER)
+        cal = Calendar()
+        cal.add("prodid", "-//llmtools//EN")
+        cal.add("version", "2.0")
+    ev = Event()
+    ev.add("summary", title)
+    ev.add("dtstart", start)
+    ev.add("dtend", start + timedelta(minutes=duration_min))
+    ev.add("uid", f"{start:%Y%m%dT%H%M%S}-{abs(hash(title)) % 10000}@llmtools")
+    cal.add_component(ev)
+    with open(p, "wb") as f:
+        f.write(cal.to_ical())
     return f"Added event '{title}' on {date} {time}."
 
 
 @tool
 def list_events() -> str:
     """List events in the local calendar file."""
+    from icalendar import Calendar
     p = resolve_safe_path(config.CALENDAR_FILE)
     if not os.path.exists(p):
         return "No calendar file yet."
-    out, dt = [], ""
-    with open(p, encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if line.startswith("DTSTART:"):
-                dt = line[8:]
-            elif line.startswith("SUMMARY:"):
-                out.append(f"{dt}: {line[8:]}")
+    with open(p, "rb") as f:
+        cal = Calendar.from_ical(f.read())
+    out = []
+    for comp in cal.walk("VEVENT"):
+        dt = comp.get("dtstart")
+        dt = dt.dt if dt else "?"
+        out.append(f"{dt}: {comp.get('summary')}")
     return "\n".join(out) if out else "(no events)"
 
 

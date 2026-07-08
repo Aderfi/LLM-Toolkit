@@ -3,6 +3,7 @@ from llmtools import (  # noqa: F401  (import populates REGISTRY)
     calendar_tools,
     daily,
     data,
+    docs,
     documents,
     files,
     git,

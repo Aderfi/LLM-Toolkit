@@ -42,7 +42,7 @@ def _html_to_text(html: str) -> str:
 
 @tool
 def fetch_url(url: str, max_chars: int = 4000) -> str:
-    """Download a web page and return cleaned text.
+    """Download a web page and return its main content as clean markdown.
 
     Args:
         url: The URL to fetch.
@@ -50,5 +50,13 @@ def fetch_url(url: str, max_chars: int = 4000) -> str:
     """
     resp = requests.get(url, timeout=20, headers={"User-Agent": "Gemma4Tools/1.0"})
     resp.raise_for_status()
-    text = _html_to_text(resp.text)
+    text = None
+    try:
+        import trafilatura
+        text = trafilatura.extract(resp.text, url=url, output_format="markdown",
+                                   include_links=True)
+    except ImportError:
+        pass
+    if not text:  # trafilatura missing or found no main content
+        text = _html_to_text(resp.text)
     return text[:max_chars] + ("…" if len(text) > max_chars else "")

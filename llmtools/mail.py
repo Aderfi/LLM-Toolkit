@@ -1,8 +1,5 @@
-import email
-import imaplib
 import smtplib
 import ssl
-from email.header import decode_header
 from email.message import EmailMessage
 
 from llmtools import config
@@ -11,19 +8,6 @@ from llmtools.core import tool
 
 def _creds_ok():
     return bool(config.EMAIL_ADDRESS and config.EMAIL_PASSWORD)
-
-
-def _decode(value):
-    if not value:
-        return ""
-    parts = decode_header(value)
-    out = []
-    for text, enc in parts:
-        if isinstance(text, bytes):
-            out.append(text.decode(enc or "utf-8", errors="replace"))
-        else:
-            out.append(text)
-    return "".join(out)
 
 
 @tool
@@ -52,7 +36,7 @@ def send_email(to: str, subject: str, body: str) -> str:
 
 @tool
 def read_emails(count: int = 5, folder: str = "INBOX", unread_only: bool = False) -> str:
-    """Read recent email headers via IMAP.
+    """Read recent emails via IMAP (subject, sender, date, snippet).
 
     Args:
         count: How many recent emails to show.
@@ -61,24 +45,13 @@ def read_emails(count: int = 5, folder: str = "INBOX", unread_only: bool = False
     """
     if not _creds_ok():
         return "Error: set EMAIL_ADDRESS and EMAIL_PASSWORD."
-    M = imaplib.IMAP4_SSL(config.IMAP_HOST)
-    try:
-        M.login(config.EMAIL_ADDRESS, config.EMAIL_PASSWORD)
-        M.select(folder)
-        _, data = M.search(None, "UNSEEN" if unread_only else "ALL")
-        ids = data[0].split()[-count:]
-        out = []
-        for i in reversed(ids):
-            _, msg_data = M.fetch(i, "(RFC822)")
-            m = email.message_from_bytes(msg_data[0][1])
-            out.append(
-                f"From: {_decode(m.get('From'))}\n"
-                f"Date: {m.get('Date', '')}\n"
-                f"Subject: {_decode(m.get('Subject'))}"
-            )
-        return "\n\n".join(out) if out else "No emails."
-    finally:
-        try:
-            M.logout()
-        except Exception:
-            pass
+    from imap_tools import AND, MailBox
+    criteria = AND(seen=False) if unread_only else AND(all=True)
+    out = []
+    with MailBox(config.IMAP_HOST).login(
+            config.EMAIL_ADDRESS, config.EMAIL_PASSWORD, initial_folder=folder) as mb:
+        for msg in mb.fetch(criteria, limit=count, reverse=True, mark_seen=False):
+            snippet = (msg.text or msg.html or "").strip().replace("\n", " ")[:200]
+            out.append(f"From: {msg.from_}\nDate: {msg.date_str}\n"
+                       f"Subject: {msg.subject}\n{snippet}")
+    return "\n\n".join(out) if out else "No emails."
