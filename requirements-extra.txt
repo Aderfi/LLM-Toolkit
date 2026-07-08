@@ -1,0 +1,9 @@
+# Heavy / optional AI deps for llmtools/knowledge.py (RAG, OCR, YouTube, translate).
+#   uv pip install -p .venv/bin/python3 -r requirements-extra.txt
+# OCR also needs the system 'tesseract' binary (apt install tesseract-ocr tesseract-ocr-spa).
+sentence-transformers>=2.7
+numpy>=1.26
+pytesseract>=0.3.10
+youtube-transcript-api>=0.6
+argostranslate>=1.9
+yt-dlp>=2024.1

@@ -1,0 +1,6 @@
+# Audio tools (STT + TTS). Heavy — install only if you use llmtools/audio.py.
+#   uv pip install -p .venv/bin/python3 -r requirements-audio.txt
+faster-whisper>=1.0
+piper-tts>=1.2
+sounddevice>=0.4
+soundfile>=0.12
