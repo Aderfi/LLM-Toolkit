@@ -1,20 +1,31 @@
-from llmtools import (  # noqa: F401  (import populates REGISTRY)
+"""Tools an LLM can call. Importing the modules fills ``REGISTRY``."""
+
+from . import (  # noqa: F401  (import populates REGISTRY)
+    aemps,
     audio,
+    browser,
     calendar_tools,
+    cima,
+    college,
     daily,
     data,
     docs,
     documents,
     files,
+    gdrive,
     git,
     graphs,
     knowledge,
     mail,
     markdown,
     media,
+    memory,
+    meta,
     obsidian,
+    shell,
     system,
     utils,
+    vademecum,
     web,
 )
-from llmtools.core import REGISTRY, call_tool, get_schemas  # noqa: F401
+from .core import REGISTRY, call_tool, get_schemas, needs_confirmation  # noqa: F401

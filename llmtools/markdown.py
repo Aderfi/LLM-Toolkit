@@ -1,6 +1,6 @@
 import os
 
-from llmtools.core import backup_file, resolve_safe_path, tool
+from .core import backup_file, resolve_safe_path, tool
 
 
 @tool

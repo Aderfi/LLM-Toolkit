@@ -3,7 +3,7 @@ import os
 import shutil
 import zipfile
 
-from llmtools.core import backup_file, resolve_safe_path, tool
+from .core import backup_file, resolve_safe_path, tool
 
 # All dataframe I/O goes through Polars. Tables are described as
 #   'a,b;1,2;3,4'  ->  first row = column names, ';' separates rows.
@@ -148,7 +148,7 @@ def clipboard_set(text: str) -> str:
     return "Copied to clipboard."
 
 
-@tool
+@tool(confirm=True)
 def http_request(url: str, method: str = "GET", json_body: str = "", headers: str = "") -> str:
     """Make an HTTP request to a REST API and return status + body.
 

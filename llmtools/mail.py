@@ -2,15 +2,18 @@ import smtplib
 import ssl
 from email.message import EmailMessage
 
-from llmtools import config
-from llmtools.core import tool
+from .config import get_settings
+from .core import tool
 
 
-def _creds_ok():
-    return bool(config.EMAIL_ADDRESS and config.EMAIL_PASSWORD)
+def _creds():
+    s = get_settings()
+    if not (s.email_address and s.email_password):
+        raise ValueError("set EMAIL_ADDRESS and EMAIL_PASSWORD.")
+    return s, s.email_address, s.email_password.get_secret_value()
 
 
-@tool
+@tool(confirm=True)
 def send_email(to: str, subject: str, body: str) -> str:
     """Send a plain-text email via SMTP (STARTTLS).
 
@@ -19,18 +22,17 @@ def send_email(to: str, subject: str, body: str) -> str:
         subject: Subject line.
         body: Plain-text body.
     """
-    if not _creds_ok():
-        return "Error: set EMAIL_ADDRESS and EMAIL_PASSWORD."
+    s, address, password = _creds()
     msg = EmailMessage()
-    msg["From"] = config.EMAIL_ADDRESS
+    msg["From"] = address
     msg["To"] = to
     msg["Subject"] = subject
     msg.set_content(body)
     ctx = ssl.create_default_context()
-    with smtplib.SMTP(config.SMTP_HOST, config.SMTP_PORT) as s:
-        s.starttls(context=ctx)
-        s.login(config.EMAIL_ADDRESS, config.EMAIL_PASSWORD)
-        s.send_message(msg)
+    with smtplib.SMTP(s.smtp_host, s.smtp_port, timeout=30) as smtp:
+        smtp.starttls(context=ctx)
+        smtp.login(address, password)
+        smtp.send_message(msg)
     return f"Sent email to {to}."
 
 
@@ -43,13 +45,11 @@ def read_emails(count: int = 5, folder: str = "INBOX", unread_only: bool = False
         folder: Mailbox folder, e.g. 'INBOX'.
         unread_only: Only unread messages.
     """
-    if not _creds_ok():
-        return "Error: set EMAIL_ADDRESS and EMAIL_PASSWORD."
+    s, address, password = _creds()
     from imap_tools import AND, MailBox
     criteria = AND(seen=False) if unread_only else AND(all=True)
     out = []
-    with MailBox(config.IMAP_HOST).login(
-            config.EMAIL_ADDRESS, config.EMAIL_PASSWORD, initial_folder=folder) as mb:
+    with MailBox(s.imap_host).login(address, password, initial_folder=folder) as mb:
         for msg in mb.fetch(criteria, limit=count, reverse=True, mark_seen=False):
             snippet = (msg.text or msg.html or "").strip().replace("\n", " ")[:200]
             out.append(f"From: {msg.from_}\nDate: {msg.date_str}\n"

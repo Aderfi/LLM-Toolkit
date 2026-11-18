@@ -1,4 +1,4 @@
-from llmtools import config, graphs
+from llmtools import graphs
 
 
 def test_mermaid_diagram():
@@ -7,7 +7,6 @@ def test_mermaid_diagram():
 
 
 def test_graphviz_without_binary(monkeypatch, tmp_path):
-    monkeypatch.setattr(config, "ALLOWED_ROOTS", [str(tmp_path)])
     monkeypatch.setattr(graphs.shutil, "which", lambda _: None)
     out = graphs.graphviz_render("digraph{a->b}", str(tmp_path / "g.png"))
     assert "dot" in out.lower() and "a->b" in out

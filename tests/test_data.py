@@ -1,12 +1,7 @@
-from llmtools import config, data
-
-
-def _roots(tmp_path, monkeypatch):
-    monkeypatch.setattr(config, "ALLOWED_ROOTS", [str(tmp_path)])
+from llmtools import data
 
 
 def test_csv_roundtrip(tmp_path, monkeypatch):
-    _roots(tmp_path, monkeypatch)
     p = str(tmp_path / "d.csv")
     data.write_csv(p, "a,b;1,2")
     out = data.read_csv(p)
@@ -14,7 +9,6 @@ def test_csv_roundtrip(tmp_path, monkeypatch):
 
 
 def test_excel_roundtrip(tmp_path, monkeypatch):
-    _roots(tmp_path, monkeypatch)
     p = str(tmp_path / "d.xlsx")
     data.write_excel(p, "name,age;bob,30")
     out = data.read_excel(p)
@@ -22,7 +16,6 @@ def test_excel_roundtrip(tmp_path, monkeypatch):
 
 
 def test_convert_table_csv_to_parquet_and_back(tmp_path, monkeypatch):
-    _roots(tmp_path, monkeypatch)
     csv_p = str(tmp_path / "d.csv")
     data.write_csv(csv_p, "name,age;bob,30;ana,25")
     pq = str(tmp_path / "d.parquet")
@@ -34,7 +27,6 @@ def test_convert_table_csv_to_parquet_and_back(tmp_path, monkeypatch):
 
 
 def test_table_stats(tmp_path, monkeypatch):
-    _roots(tmp_path, monkeypatch)
     p = str(tmp_path / "d.csv")
     data.write_csv(p, "x,y;1,2;3,4")
     out = data.table_stats(p)
@@ -42,7 +34,6 @@ def test_table_stats(tmp_path, monkeypatch):
 
 
 def test_zip_and_extract(tmp_path, monkeypatch):
-    _roots(tmp_path, monkeypatch)
     (tmp_path / "f.txt").write_text("hi")
     z = str(tmp_path / "a.zip")
     data.make_zip(str(tmp_path / "f.txt"), z)

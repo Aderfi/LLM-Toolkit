@@ -1,38 +1,28 @@
 import os
 
-from llmtools import calendar_tools, config, knowledge, media, system, utils
-
-
-def _roots(tmp_path, monkeypatch):
-    monkeypatch.setattr(config, "ALLOWED_ROOTS", [str(tmp_path)])
+from llmtools import calendar_tools, knowledge, media, system, utils
 
 
 # --- calendar ---
-def test_calendar_add_and_list(tmp_path, monkeypatch):
-    _roots(tmp_path, monkeypatch)
-    monkeypatch.setattr(config, "CALENDAR_FILE", str(tmp_path / "cal.ics"))
+def test_calendar_add_and_list():
     calendar_tools.add_event("Dentist", "2026-08-01", "10:30")
     out = calendar_tools.list_events()
     assert "Dentist" in out and "2026-08-01 10:30" in out
 
 
-def test_reminders(tmp_path, monkeypatch):
-    _roots(tmp_path, monkeypatch)
-    monkeypatch.setattr(config, "REMINDERS_FILE", str(tmp_path / "rem.md"))
+def test_reminders():
     calendar_tools.add_reminder("buy milk", due="today")
     assert "buy milk" in calendar_tools.list_reminders()
 
 
 # --- knowledge (no heavy deps needed for this path) ---
-def test_semantic_search_no_index(tmp_path, monkeypatch):
-    monkeypatch.setattr(config, "RAG_INDEX_DIR", str(tmp_path / "empty"))
+def test_semantic_search_no_index():
     out = knowledge.semantic_search("anything")
     assert "no index" in out.lower()
 
 
 # --- media ---
-def test_qr_generate(tmp_path, monkeypatch):
-    _roots(tmp_path, monkeypatch)
+def test_qr_generate(tmp_path):
     out = media.qr_generate("https://example.com", str(tmp_path / "q.png"))
     assert os.path.exists(tmp_path / "q.png") and "QR" in out
 

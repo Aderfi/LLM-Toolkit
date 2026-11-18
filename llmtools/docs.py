@@ -3,7 +3,7 @@ import re
 import shutil
 import subprocess
 
-from llmtools.core import tool
+from .core import tool
 
 
 def _reject_flag(*values):

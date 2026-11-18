@@ -3,10 +3,10 @@ import json
 import os
 import re
 
-from llmtools import config
-from llmtools.core import resolve_safe_path, tool
+from .config import get_settings
+from .core import resolve_safe_path, tool
 
-_EXTRA_MSG = "Error: install knowledge deps (pip install -r requirements-extra.txt)."
+_EXTRA_MSG = "Error: install knowledge deps (uv sync --extra extra)."
 
 _model = None
 
@@ -16,7 +16,7 @@ def _embedder():
     if _model is None:
         from sentence_transformers import SentenceTransformer
 
-        _model = SentenceTransformer(config.RAG_MODEL)
+        _model = SentenceTransformer(get_settings().rag_model)
     return _model
 
 
@@ -29,7 +29,7 @@ def index_documents(path: str = "", glob_pattern: str = "*.md") -> str:
     """Build a semantic (embedding) index over text/markdown files.
 
     Args:
-        path: Root directory (empty = DEFAULT_VAULT).
+        path: Root directory (empty = Obsidian vault, else FILES_ROOT).
         glob_pattern: File glob, e.g. '*.md' or '*.txt'.
     """
     try:
@@ -38,7 +38,7 @@ def index_documents(path: str = "", glob_pattern: str = "*.md") -> str:
         model = _embedder()
     except ImportError:
         return _EXTRA_MSG
-    root = resolve_safe_path(path or config.DEFAULT_VAULT)
+    root = resolve_safe_path(path or get_settings().obsidian_vault or get_settings().files_root)
     files = glob.glob(os.path.join(root, "**", glob_pattern), recursive=True)
     texts, meta = [], []
     for fp in files:
@@ -53,9 +53,9 @@ def index_documents(path: str = "", glob_pattern: str = "*.md") -> str:
     if not texts:
         return "No documents found to index."
     emb = model.encode(texts, normalize_embeddings=True)
-    os.makedirs(config.RAG_INDEX_DIR, exist_ok=True)
-    np.save(os.path.join(config.RAG_INDEX_DIR, "emb.npy"), emb)
-    with open(os.path.join(config.RAG_INDEX_DIR, "meta.json"), "w", encoding="utf-8") as f:
+    os.makedirs(get_settings().rag_index_dir, exist_ok=True)
+    np.save(os.path.join(get_settings().rag_index_dir, "emb.npy"), emb)
+    with open(os.path.join(get_settings().rag_index_dir, "meta.json"), "w", encoding="utf-8") as f:
         json.dump({"texts": texts, "meta": meta}, f)
     return f"Indexed {len(texts)} chunks from {len(files)} files."
 
@@ -68,8 +68,8 @@ def semantic_search(query: str, k: int = 5) -> str:
         query: Search query.
         k: Number of results.
     """
-    ep = os.path.join(config.RAG_INDEX_DIR, "emb.npy")
-    mp = os.path.join(config.RAG_INDEX_DIR, "meta.json")
+    ep = os.path.join(get_settings().rag_index_dir, "emb.npy")
+    mp = os.path.join(get_settings().rag_index_dir, "meta.json")
     if not (os.path.exists(ep) and os.path.exists(mp)):
         return "No index found. Run index_documents first."
     try:

@@ -2,15 +2,14 @@ import json
 import urllib.parse
 import urllib.request
 
-from llmtools import config
-from llmtools.core import tool
+from .core import tool
 
 
 def _get_json(url):
     req = urllib.request.Request(
         url, headers={"User-Agent": "Gemma4Tools/1.0", "Accept": "application/json"}
     )
-    with urllib.request.urlopen(req) as r:
+    with urllib.request.urlopen(req, timeout=20) as r:
         return json.loads(r.read().decode("utf-8"))
 
 
@@ -49,25 +48,24 @@ def get_current_news(topic: str = "") -> str:
     Args:
         topic: Optional search topic.
     """
-    key = config.NEWS_API_KEY
-    if key in ("YOUR_NEWS_API_KEY", "YOUR_API_KEY", ""):
-        return "Error: set NEWS_API_KEY env var or config value."
-    if topic.strip():
-        url = (
-            f"https://newsapi.org/v2/everything?q={urllib.parse.quote(topic)}"
-            f"&sortBy=publishedAt&pageSize=5&apiKey={key}"
-        )
-    else:
-        url = f"https://newsapi.org/v2/top-headlines?language=en&pageSize=5&apiKey={key}"
-    data = _get_json(url)
-    if data.get("status") != "ok":
-        return f"Error: {data.get('message', 'unknown')}"
-    arts = data.get("articles", [])
-    if not arts:
+    from google_news_api import GoogleNewsClient
+    from google_news_api.exceptions import HTTPError, ParsingError, RateLimitError, ValidationError
+
+    try:
+        with GoogleNewsClient(language="es", country="ES") as client:
+            if topic.strip():
+                articles = client.search(topic, when="24h", max_results=5)
+            else:
+                articles = client.top_news(topic="NATION", max_results=5)
+    except (HTTPError, RateLimitError, ParsingError, ValidationError) as e:
+        return f"Error fetching news: {e}"
+
+    if not articles:
         return "No articles found."
+
     return "\n".join(
-        f"{i}. {a.get('title', '')} ({a.get('source', {}).get('name', '')})"
-        for i, a in enumerate(arts, 1)
+        f"{i}. {a['title']} ({a['source']}, {a['published']})"
+        for i, a in enumerate(articles, 1)
     )
 
 

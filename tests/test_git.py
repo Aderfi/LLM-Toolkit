@@ -1,10 +1,9 @@
 import subprocess
 
-from llmtools import config, git
+from llmtools import git
 
 
 def test_git_init_status_commit(tmp_path, monkeypatch):
-    monkeypatch.setattr(config, "ALLOWED_ROOTS", [str(tmp_path)])
     git.git_init(str(tmp_path))
     subprocess.run(["git", "-C", str(tmp_path), "config", "user.email", "a@b.c"])
     subprocess.run(["git", "-C", str(tmp_path), "config", "user.name", "t"])
@@ -16,7 +15,6 @@ def test_git_init_status_commit(tmp_path, monkeypatch):
 
 
 def test_git_tag_and_run_passthrough(tmp_path, monkeypatch):
-    monkeypatch.setattr(config, "ALLOWED_ROOTS", [str(tmp_path)])
     git.git_init(str(tmp_path))
     subprocess.run(["git", "-C", str(tmp_path), "config", "user.email", "a@b.c"])
     subprocess.run(["git", "-C", str(tmp_path), "config", "user.name", "t"])
@@ -30,7 +28,6 @@ def test_git_tag_and_run_passthrough(tmp_path, monkeypatch):
 
 
 def test_git_install_and_list_hook(tmp_path, monkeypatch):
-    monkeypatch.setattr(config, "ALLOWED_ROOTS", [str(tmp_path)])
     git.git_init(str(tmp_path))
     git.git_install_hook("pre-commit", "#!/bin/sh\nexit 0", repo=str(tmp_path))
     assert "pre-commit" in git.git_list_hooks(str(tmp_path))

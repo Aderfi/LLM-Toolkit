@@ -32,10 +32,51 @@ def test_call_tool_returns_string_and_catches_errors():
     assert isinstance(out, str) and "kaboom" in out
 
 
-def test_resolve_safe_path_rejects_outside(tmp_path, monkeypatch):
-    monkeypatch.setattr(core.config, "ALLOWED_ROOTS", [str(tmp_path)])
+def test_resolve_safe_path_rejects_outside():
     with pytest.raises(ValueError):
         core.resolve_safe_path("/etc/passwd")
+    with pytest.raises(ValueError):
+        core.resolve_safe_path("../escape.txt")
+
+
+def test_call_tool_coerces_and_validates_args():
+    @core.tool
+    def add(a: int, b: int = 1) -> str:
+        """Add.
+
+        Args:
+            a: First.
+            b: Second.
+        """
+        return str(a + b)
+
+    assert core.call_tool("add", {"a": "5", "b": 2}) == "7"
+    assert "Invalid arguments" in core.call_tool("add", {"a": "five"})
+    assert "Invalid arguments" in core.call_tool("add", {})
+
+
+def test_needs_confirmation_static_and_conditional():
+    @core.tool(confirm=True)
+    def risky() -> str:
+        """Risky."""
+        return "done"
+
+    @core.tool(confirm=lambda a: a["loud"])
+    def maybe(loud: bool = False) -> str:
+        """Maybe."""
+        return "ok"
+
+    assert core.needs_confirmation("risky")
+    assert not core.needs_confirmation("maybe", {"loud": False})
+    assert core.needs_confirmation("maybe", {"loud": "true"})
+    assert not core.needs_confirmation("unknown_tool")
+
+
+def test_run_argv_reports_exit_code_and_truncates(configure):
+    configure(MAX_OUTPUT_CHARS="500")
+    assert core.run_argv(["false"]).startswith("[exit 1]")
+    out = core.run_argv(["python3", "-c", "print('x' * 5000)"])
+    assert "truncated" in out and len(out) < 700
 
 
 def test_backup_file_creates_backup(tmp_path):

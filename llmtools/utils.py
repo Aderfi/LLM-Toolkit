@@ -4,7 +4,7 @@ import json
 import uuid
 from datetime import datetime
 
-from llmtools.core import tool
+from .core import tool
 
 
 @tool

@@ -3,7 +3,7 @@ import shlex
 import shutil
 import subprocess
 
-from llmtools.core import backup_file, resolve_safe_path, tool
+from .core import backup_file, resolve_safe_path, tool
 
 # Force stable, English, machine-readable git output regardless of system locale.
 _GIT_ENV = {**os.environ, "LC_ALL": "C", "LANG": "C"}
@@ -28,7 +28,7 @@ def _run_gh(args, repo):
 # --------------------------------------------------------------------------- #
 # Escape hatch: run ANY git subcommand not wrapped below.
 # --------------------------------------------------------------------------- #
-@tool
+@tool(confirm=True)
 def git_run(args: str, repo: str = ".") -> str:
     """Run an arbitrary git command (escape hatch for anything not wrapped).
 
@@ -164,7 +164,7 @@ def git_commit(message: str, repo: str = ".") -> str:
     return _run_git(["commit", "-m", message], repo)
 
 
-@tool
+@tool(confirm=True)
 def git_reset(mode: str = "mixed", ref: str = "HEAD", repo: str = ".") -> str:
     """Reset current HEAD to a ref.
 
@@ -190,7 +190,7 @@ def git_restore(path: str, staged: bool = False, repo: str = ".") -> str:
     return _run_git(args, repo) or "Restored."
 
 
-@tool
+@tool(confirm=True)
 def git_rm(path: str, cached: bool = False, repo: str = ".") -> str:
     """Remove file(s) from the index (and optionally the working tree).
 
@@ -203,7 +203,7 @@ def git_rm(path: str, cached: bool = False, repo: str = ".") -> str:
     return _run_git(args, repo)
 
 
-@tool
+@tool(confirm=True)
 def git_clean(repo: str = ".", directories: bool = False) -> str:
     """Remove untracked files (force). Add directories=True to also remove dirs.
 
@@ -272,7 +272,7 @@ def git_checkout(ref: str, repo: str = ".") -> str:
     return _run_git(["checkout", ref], repo)
 
 
-@tool
+@tool(confirm=True)
 def git_delete_branch(name: str, force: bool = False, repo: str = ".") -> str:
     """Delete a local branch.
 
@@ -307,7 +307,7 @@ def git_merge(branch: str, repo: str = ".") -> str:
     return _run_git(["merge", branch], repo)
 
 
-@tool
+@tool(confirm=True)
 def git_rebase(onto: str, repo: str = ".") -> str:
     """Rebase the current branch onto another ref (non-interactive).
 
@@ -362,7 +362,7 @@ def git_tag_create(name: str, message: str = "", ref: str = "", repo: str = ".")
     return _run_git(args, repo) or f"Tag {name} created."
 
 
-@tool
+@tool(confirm=True)
 def git_tag_delete(name: str, repo: str = ".") -> str:
     """Delete a local tag.
 
@@ -373,7 +373,7 @@ def git_tag_delete(name: str, repo: str = ".") -> str:
     return _run_git(["tag", "-d", name], repo)
 
 
-@tool
+@tool(confirm=True)
 def git_push_tags(remote: str = "origin", repo: str = ".") -> str:
     """Push all tags to a remote.
 
@@ -397,7 +397,7 @@ def git_remote_list(repo: str = ".") -> str:
     return _run_git(["remote", "-v"], repo)
 
 
-@tool
+@tool(confirm=True)
 def git_remote_add(name: str, url: str, repo: str = ".") -> str:
     """Add a remote.
 
@@ -433,7 +433,7 @@ def git_pull(remote: str = "origin", branch: str = "", repo: str = ".") -> str:
     return _run_git(args, repo)
 
 
-@tool
+@tool(confirm=True)
 def git_push(
     remote: str = "origin", branch: str = "", set_upstream: bool = False, repo: str = "."
 ) -> str:
@@ -465,7 +465,7 @@ def git_config_get(key: str, repo: str = ".") -> str:
     return _run_git(["config", "--get", key], repo)
 
 
-@tool
+@tool(confirm=True)
 def git_config_set(key: str, value: str, repo: str = ".") -> str:
     """Set a local git config value.
 
@@ -522,7 +522,7 @@ def git_show_hook(name: str, repo: str = ".") -> str:
         return f.read()
 
 
-@tool
+@tool(confirm=True)
 def git_install_hook(name: str, script: str, repo: str = ".") -> str:
     """Install (write + make executable) a git hook, backing up any existing one.
 
@@ -541,7 +541,7 @@ def git_install_hook(name: str, script: str, repo: str = ".") -> str:
     return f"Installed hook '{name}' at {path}."
 
 
-@tool
+@tool(confirm=True)
 def git_remove_hook(name: str, repo: str = ".") -> str:
     """Remove a git hook (renames it to <name>._backup for safety, does not delete).
 
@@ -560,7 +560,7 @@ def git_remove_hook(name: str, repo: str = ".") -> str:
 # --------------------------------------------------------------------------- #
 # GitHub releases (via gh CLI)
 # --------------------------------------------------------------------------- #
-@tool
+@tool(confirm=True)
 def gh_release_create(tag: str, title: str = "", notes: str = "", repo: str = ".") -> str:
     """Create a GitHub release for a tag (requires 'gh' authenticated + a remote).
 

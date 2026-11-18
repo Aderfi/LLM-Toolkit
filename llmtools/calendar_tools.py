@@ -1,8 +1,8 @@
 import os
 from datetime import datetime, timedelta
 
-from llmtools import config
-from llmtools.core import backup_file, resolve_safe_path, tool
+from .config import get_settings
+from .core import backup_file, resolve_safe_path, tool
 
 
 @tool
@@ -16,7 +16,7 @@ def add_event(title: str, date: str, time: str = "09:00", duration_min: int = 60
         duration_min: Duration in minutes.
     """
     from icalendar import Calendar, Event
-    p = resolve_safe_path(config.CALENDAR_FILE)
+    p = resolve_safe_path(get_settings().calendar_file)
     start = datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M")
     if os.path.exists(p):
         backup_file(p)
@@ -41,7 +41,7 @@ def add_event(title: str, date: str, time: str = "09:00", duration_min: int = 60
 def list_events() -> str:
     """List events in the local calendar file."""
     from icalendar import Calendar
-    p = resolve_safe_path(config.CALENDAR_FILE)
+    p = resolve_safe_path(get_settings().calendar_file)
     if not os.path.exists(p):
         return "No calendar file yet."
     with open(p, "rb") as f:
@@ -62,7 +62,7 @@ def add_reminder(text: str, due: str = "") -> str:
         text: Reminder text.
         due: Optional due date/time.
     """
-    p = resolve_safe_path(config.REMINDERS_FILE)
+    p = resolve_safe_path(get_settings().reminders_file)
     line = f"- [ ] {text}" + (f" (due: {due})" if due else "")
     if os.path.exists(p):
         backup_file(p)
@@ -74,7 +74,7 @@ def add_reminder(text: str, due: str = "") -> str:
 @tool
 def list_reminders() -> str:
     """List reminders/todos from the local reminders file."""
-    p = resolve_safe_path(config.REMINDERS_FILE)
+    p = resolve_safe_path(get_settings().reminders_file)
     if not os.path.exists(p):
         return "No reminders yet."
     with open(p, encoding="utf-8") as f:

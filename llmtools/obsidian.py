@@ -2,12 +2,15 @@ import glob
 import os
 from datetime import datetime
 
-from llmtools import config
-from llmtools.core import backup_file, resolve_safe_path, tool
+from .config import get_settings
+from .core import backup_file, resolve_safe_path, tool
 
 
 def _vault():
-    return config.DEFAULT_VAULT
+    vault = get_settings().obsidian_vault
+    if vault is None:
+        raise ValueError("OBSIDIAN_VAULT is not configured.")
+    return str(vault)
 
 
 def _note_path(name):

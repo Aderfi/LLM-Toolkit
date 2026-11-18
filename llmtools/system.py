@@ -1,7 +1,7 @@
 import shutil
 import subprocess
 
-from llmtools.core import tool
+from .core import resolve_safe_path, run_argv, tool
 
 
 @tool
@@ -50,3 +50,31 @@ def desktop_notify(title: str, message: str = "") -> str:
         return "Error: 'notify-send' not found."
     subprocess.run(["notify-send", title, message])
     return "Notification sent."
+
+
+@tool(confirm=True)
+def kill_process(pid: int, force: bool = False) -> str:
+    """Terminate a process by PID (SIGTERM, or SIGKILL with force).
+
+    Args:
+        pid: Process ID (see list_processes).
+        force: Send SIGKILL instead of SIGTERM.
+    """
+    out = run_argv(["kill", "-KILL" if force else "-TERM", str(pid)])
+    return f"Signal sent to {pid}." if out == "(no output)" else out
+
+
+@tool
+def open_path(target: str) -> str:
+    """Open a file, folder or URL with the desktop's default application.
+
+    Args:
+        target: File path or http(s) URL.
+    """
+    opener = next((c for c in ("wslview", "xdg-open", "open") if shutil.which(c)), None)
+    if opener is None:
+        return "Error: no opener found (install xdg-utils or wslu)."
+    if not target.startswith(("http://", "https://")):
+        target = resolve_safe_path(target)
+    subprocess.Popen([opener, target], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return f"Opened {target}."
